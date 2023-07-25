@@ -11,5 +11,9 @@
     "Lambda"
   ],
   "author": "Jose Corredor <jose.corrzaDeveloper@gmail.com>",
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "aws-sdk": "^2.1421.0",
+    "serverless": "^3.33.0"
+  }
 }
