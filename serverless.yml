@@ -59,6 +59,17 @@ functions:
       - http:
           path: /
           method: GET
+  delete-users:
+    handler: deleteUsers/handler.deleteUsers
+    runtime: python3.8
+    events:
+      - http:
+          path: /users/{id}
+          method: DELETE
+          request:
+            parameters:
+              paths:
+                id: true
 
 resources:
   Resources:
