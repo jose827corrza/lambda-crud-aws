@@ -29,6 +29,9 @@ custom:
 functions:
   get-users:
     handler: getUsers/handler.getUsers
+    package:
+      patterns:
+        - "getUsers/handler.js"
     events:
       - http:
           path: /users/{id}
@@ -39,12 +42,18 @@ functions:
                 id: true
   create-users:
     handler: createUsers/handler.createUsers
+    package:
+      patterns:
+        - "createUsers/handler.js"
     events:
       - http:
           path: /users
           method: POST
   update-users:
     handler: updateUsers/handler.updateUsers
+    package:
+      patterns:
+        - "updateUsers/handler.js"
     events:
       - http:
           path: /users/{id}
@@ -55,6 +64,9 @@ functions:
                 id: true
   hello-users:
     handler: hello/handler.hello
+    package:
+      patterns:
+        - "hello/handler.js"
     events:
       - http:
           path: /
@@ -62,6 +74,9 @@ functions:
   delete-users:
     handler: deleteUsers/handler.deleteUsers
     runtime: python3.8
+    package:
+      patterns:
+        - "deleteUsers/handler.py"
     events:
       - http:
           path: /users/{id}
