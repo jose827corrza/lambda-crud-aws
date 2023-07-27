@@ -18,5 +18,9 @@ Using the following command is possible to debug in loca
 
 Very important before use the command above, have included the plugin into the serverless file
 
+Another important theme is currently the repo contains a workflow file which specifies that every time a pull request to main is generated, this will run some tests and later will automate the deploy to the AWS cloud.
+
+**CURRENTLY** is disabled due to security issues
+
 
 *Road to AWS Cloud Practitioner Certification*
