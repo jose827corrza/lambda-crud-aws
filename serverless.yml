@@ -30,6 +30,9 @@ custom:
       migrate: true
     # Uncomment only if you already have a DynamoDB running locally
     # noStart: true
+  config:
+    stage: ${opt:stage, 'dev'}
+    region: ${opt:region, 'us-east-1'}
 
 functions:
   get-users:
@@ -111,3 +114,32 @@ resources:
         ProvisionedThroughput:
           ReadCapacityUnits: 1
           WriteCapacityUnits: 1
+    S3Bucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        # AccessControl: PublicRead # removed due to an error deploying
+        OwnershipControls:
+          Rules:
+            - ObjectOwnership: ObjectWriter
+        PublicAccessBlockConfiguration:
+          BlockPublicAcls: false
+          BlockPublicPolicy: false
+        BucketName: !Sub "s3-bucket-user-crud-${AWS::AccountId}-${self:custom.config.region}"
+    Se3Policy:
+      Type: AWS::S3::BucketPolicy
+      Properties:
+        Bucket: !Ref S3Bucket
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Action:
+                - 's3:GetObject'
+              Effect: Allow
+              Resource: !Join
+                - ''
+                - - 'arn:aws:s3:::'
+                  - !Ref S3Bucket
+                  - /*
+              Principal: '*'
+
+
