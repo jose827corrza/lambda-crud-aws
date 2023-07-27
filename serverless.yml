@@ -14,6 +14,11 @@ provider:
           Resource: !GetAtt usersTable.Arn # Creates a ref to the ARN of the Resource created below
           # Resource: arn:aws:dynamodb:us-east-1:164190131261:table/usersTable-TEST
 
+package: 
+  individually: true
+  patterns:
+    - "!*/**"
+
 custom:
   dynamodb:
   # If you only want to use DynamoDB Local in some stages, declare them here
@@ -49,6 +54,9 @@ functions:
       - http:
           path: /users
           method: POST
+          request:
+            schemas:
+              application/json: ${file(schemas/user-schema.json)}
   update-users:
     handler: updateUsers/handler.updateUsers
     package:
@@ -62,6 +70,8 @@ functions:
             parameters:
               paths:
                 id: true
+            schemas:
+              application/json: ${file(schemas/user-schema.json)}
   hello-users:
     handler: hello/handler.hello
     package:
