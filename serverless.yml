@@ -13,6 +13,14 @@ provider:
           Action: 'dynamodb:*'
           Resource: !GetAtt usersTable.Arn # Creates a ref to the ARN of the Resource created below
           # Resource: arn:aws:dynamodb:us-east-1:164190131261:table/usersTable-TEST
+        - Effect: Allow
+          Action: 's3:*'
+          # Resource: !GetAtt S3Bucket.Arn # Creates a ref to the ARN of the Resource created below
+          Resource: 'arn:aws:s3:::s3-bucket-user-crud-164190131261-us-east-1/*' # Creates a ref to the ARN of the Resource created below
+
+
+  environment:
+    BUCKET: s3-bucket-user-crud-164190131261-us-east-1
 
 package: 
   individually: true
@@ -98,7 +106,19 @@ functions:
             parameters:
               paths:
                 id: true
-
+  signUrl:
+    handler: signUrl/handler.signS3Url
+    package:
+      patterns:
+        - "signUrl/handler.js"
+    events:
+      - http:
+          path: /sign
+          method: GET
+          request:
+            parameters:
+              querystrings:
+                filename: true
 resources:
   Resources:
     usersTable:
