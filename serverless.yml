@@ -24,6 +24,7 @@ provider:
 
   environment:
     BUCKET: s3-bucket-user-crud-164190131261-us-east-1
+    SECRET_EGG: ${ssm:/SECRET_EGG}
 
 package: 
   individually: true
@@ -47,6 +48,11 @@ custom:
     region: ${opt:region, 'us-east-1'}
 
 functions:
+  custom-authorizer:
+    handler: authorizer/handler.authorize
+    package: 
+      patterns:
+        - "authorizer/handler.js"
   get-users:
     handler: getUsers/handler.getUsers
     package:
@@ -69,6 +75,9 @@ functions:
     events:
       - http:
           path: /users
+          authorizer: 
+            name: custom-authorizer
+            resultTtlInSeconds: 15
           method: POST
           request:
             schemas:
