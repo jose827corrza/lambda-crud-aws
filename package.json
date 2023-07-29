@@ -15,5 +15,8 @@
   "devDependencies": {
     "aws-sdk": "^2.1421.0",
     "serverless": "^3.33.0"
+  },
+  "dependencies": {
+    "sharp": "^0.32.4"
   }
 }

@@ -219,5 +219,5 @@ dist
 # Ignore all local history of files
 .history
 .ionide
-
+nodejs.zip
 # End of https://www.toptal.com/developers/gitignore/api/serverless,macos,visualstudiocode,node,go
