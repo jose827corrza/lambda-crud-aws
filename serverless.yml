@@ -1,11 +1,16 @@
 service: serverless-dynamodb-crud
-# plugins:
+plugins:
+  - "serverless-apigateway-service-proxy"
+  - "serverless-lift"
 #   - serverless-offline
 #   - serverless-dynamodb-local
 
 provider:
   name: aws
   runtime: nodejs14.x
+  apiGateway:
+    apiKeys:
+      - serverless-dynamodb-crud
   iam:
     role:
       statements:
@@ -13,6 +18,21 @@ provider:
           Action: 'dynamodb:*'
           Resource: !GetAtt usersTable.Arn # Creates a ref to the ARN of the Resource created below
           # Resource: arn:aws:dynamodb:us-east-1:164190131261:table/usersTable-TEST
+        - Effect: Allow
+          Action: 's3:*'
+          # Resource: !GetAtt S3Bucket.Arn # Creates a ref to the ARN of the Resource created below
+          Resource: arn:aws:s3:::s3-bucket-user-crud-164190131261-us-east-1/* # Creates a ref to the ARN of the Resource created below
+
+
+  environment:
+    BUCKET: s3-bucket-user-crud-164190131261-us-east-1
+    SECRET_EGG: ${ssm:/SECRET_EGG}
+
+package: 
+  individually: true
+  patterns:
+    - "!*/**"
+    - "!**" # this lines, prevents of upload the nodejs.zip to each lambda!!!
 
 custom:
   dynamodb:
@@ -25,8 +45,51 @@ custom:
       migrate: true
     # Uncomment only if you already have a DynamoDB running locally
     # noStart: true
+  config:
+    stage: ${opt:stage, 'dev'}
+    region: ${opt:region, 'us-east-1'}
+  #SQS - API Gateway event
+  apiGatewayServiceProxies:
+    - sqs:
+        path: /like-user
+        method: post
+        queueName: likequeue
+        cors: true
+        response:
+          template:
+            # `success` is used when the integration response is 200
+            success: |-
+              { "message": "accepted" }
+            # `clientError` is used when the integration response is 400
+            clientError: |-
+              { "message": "there is an error in your request" }
+            # `serverError` is used when the integration response is 500
+            serverError: |-
+              { "message": "there was an error handling your request" }
+
+constructs:
+    sqs-queue:
+        type: queue
+        # Because in AWS, you have to request an increase of the plan, to avoid the
+        # error batchSize and reservedConcurrency were removed
+        # batchSize: 1 # Take one by one the items from the queue in the Lambda
+        worker:
+            handler: likeuser/handler.likeUser
+            # reservedConcurrency: 1 # Set that only one Lambda will be created for this job.
+            package:
+              patterns:
+                - "likeuser/handler.js"
+        extensions: # Creates the queue
+          queue:
+            Properties:
+              QueueName: likequeue
 
 functions:
+  custom-authorizer:
+    handler: authorizer/handler.authorize
+    package: 
+      patterns:
+        - "authorizer/handler.js"
   get-users:
     handler: getUsers/handler.getUsers
     package:
@@ -34,6 +97,7 @@ functions:
         - "getUsers/handler.js"
     events:
       - http:
+          private: true
           path: /users/{id}
           method: GET
           request:
@@ -48,7 +112,13 @@ functions:
     events:
       - http:
           path: /users
+          authorizer: 
+            name: custom-authorizer
+            resultTtlInSeconds: 15
           method: POST
+          request:
+            schemas:
+              application/json: ${file(schemas/user-schema.json)}
   update-users:
     handler: updateUsers/handler.updateUsers
     package:
@@ -56,12 +126,15 @@ functions:
         - "updateUsers/handler.js"
     events:
       - http:
+          private: true
           path: /users/{id}
           method: PATCH
           request:
             parameters:
               paths:
                 id: true
+            schemas:
+              application/json: ${file(schemas/user-update-schema.json)}
   hello-users:
     handler: hello/handler.hello
     package:
@@ -79,12 +152,52 @@ functions:
         - "deleteUsers/handler.py"
     events:
       - http:
+          private: true
           path: /users/{id}
           method: DELETE
           request:
             parameters:
               paths:
                 id: true
+  signUrl:
+    handler: signUrl/handler.signS3Url
+    package:
+      patterns:
+        - "signUrl/handler.js"
+    events:
+      - http:
+          private: true
+          path: /sign
+          method: GET
+          request:
+            parameters:
+              querystrings:
+                filename: true
+  thumbGenerator:
+    handler: thumbnail/handler.thumbnailGenerator
+    package:
+      patterns:
+        - "thumbnail/handler.js"
+        # - "node_modules/**"
+    layers:
+      - !Ref BaseLambdaLayer
+    events:
+      - s3:
+          bucket: s3-bucket-user-crud-164190131261-us-east-1
+          event: s3:ObjectCreated:*
+          existing: true
+          rules:
+           - prefix: upload/
+
+layers:
+  base:
+    name: prd-dependencies
+    compatibleRuntimes:
+      - nodejs14.x
+    compatibleArchitectures:
+      - x86_64
+    package:
+      artifact: nodejs.zip
 
 resources:
   Resources:
@@ -101,3 +214,32 @@ resources:
         ProvisionedThroughput:
           ReadCapacityUnits: 1
           WriteCapacityUnits: 1
+    S3Bucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        # AccessControl: PublicRead # removed due to an error deploying
+        OwnershipControls:
+          Rules:
+            - ObjectOwnership: ObjectWriter
+        PublicAccessBlockConfiguration:
+          BlockPublicAcls: false
+          BlockPublicPolicy: false
+        BucketName: !Sub "s3-bucket-user-crud-${AWS::AccountId}-${self:custom.config.region}"
+    Se3Policy:
+      Type: AWS::S3::BucketPolicy
+      Properties:
+        Bucket: !Ref S3Bucket
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Action:
+                - 's3:GetObject'
+              Effect: Allow
+              Resource: !Join
+                - ''
+                - - 'arn:aws:s3:::'
+                  - !Ref S3Bucket
+                  - /*
+              Principal: '*'
+
+
