@@ -4,7 +4,9 @@ const authorize = async(event, context) => {
     let minutes = date.getMinutes()
     let hour = date.getHours()
 
-    if ( event.authorizationToken === `Bearer ${process.env.SECRET_EGG}-${hour}-${minutes}`){
+    // Removed the  integration with the hour to make it easier to send the token, but it represents how  complex this can be implemented
+    // if ( event.authorizationToken === `Bearer ${process.env.SECRET_EGG}-${hour}-${minutes}`){
+    if ( event.authorizationToken === `Bearer ${process.env.SECRET_EGG}`){
         return {
             principalId: 'anonymous',
             policyDocument: {

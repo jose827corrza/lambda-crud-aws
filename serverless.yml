@@ -1,5 +1,7 @@
 service: serverless-dynamodb-crud
-# plugins:
+plugins:
+  - "serverless-apigateway-service-proxy"
+  - "serverless-lift"
 #   - serverless-offline
 #   - serverless-dynamodb-local
 
@@ -46,6 +48,41 @@ custom:
   config:
     stage: ${opt:stage, 'dev'}
     region: ${opt:region, 'us-east-1'}
+  #SQS - API Gateway event
+  apiGatewayServiceProxies:
+    - sqs:
+        path: /like-user
+        method: post
+        queueName: likequeue
+        cors: true
+        response:
+          template:
+            # `success` is used when the integration response is 200
+            success: |-
+              { "message": "accepted" }
+            # `clientError` is used when the integration response is 400
+            clientError: |-
+              { "message": "there is an error in your request" }
+            # `serverError` is used when the integration response is 500
+            serverError: |-
+              { "message": "there was an error handling your request" }
+
+constructs:
+    sqs-queue:
+        type: queue
+        # Because in AWS, you have to request an increase of the plan, to avoid the
+        # error batchSize and reservedConcurrency were removed
+        # batchSize: 1 # Take one by one the items from the queue in the Lambda
+        worker:
+            handler: likeuser/handler.likeUser
+            # reservedConcurrency: 1 # Set that only one Lambda will be created for this job.
+            package:
+              patterns:
+                - "likeuser/handler.js"
+        extensions: # Creates the queue
+          queue:
+            Properties:
+              QueueName: likequeue
 
 functions:
   custom-authorizer:
@@ -89,6 +126,7 @@ functions:
         - "updateUsers/handler.js"
     events:
       - http:
+          private: true
           path: /users/{id}
           method: PATCH
           request:
@@ -96,7 +134,7 @@ functions:
               paths:
                 id: true
             schemas:
-              application/json: ${file(schemas/user-schema.json)}
+              application/json: ${file(schemas/user-update-schema.json)}
   hello-users:
     handler: hello/handler.hello
     package:
@@ -114,6 +152,7 @@ functions:
         - "deleteUsers/handler.py"
     events:
       - http:
+          private: true
           path: /users/{id}
           method: DELETE
           request:
@@ -127,6 +166,7 @@ functions:
         - "signUrl/handler.js"
     events:
       - http:
+          private: true
           path: /sign
           method: GET
           request:
